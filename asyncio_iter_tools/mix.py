@@ -5,7 +5,7 @@ from .queue import ClosableQueue
 
 
 async def mix(streamA, streamB, *streamN):
-    """Mix two async-iterators into one.
+    """Mix two or more async-iterators into one.
 
     >>> async def generate(seq, timeout):
     ...     for obj in seq:
