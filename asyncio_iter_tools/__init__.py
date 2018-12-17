@@ -1,11 +1,15 @@
 import inspect
 
-from .queue import ClosableQueue
+from .queue import ClosableQueue, MultiConsumerQueue
 from .mix import mix
+from .split import split
+
 
 __all__ = [
     'ClosableQueue',
+    'MultiConsumerQueue',
     'mix',
+    'split',
     'chain',
     'filter',
 ]
