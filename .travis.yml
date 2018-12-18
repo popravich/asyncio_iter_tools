@@ -2,10 +2,9 @@ sudo: false
 dist: trusty
 
 language: python
+
 python:
 - "3.6"
-- "3.7"
-- "nightly"
 
 install:
 - pip install -r requirements.txt
@@ -13,10 +12,14 @@ install:
 
 jobs:
   include:
-  - script: flake8 asyncio_iter_tools tests
-  - script: py.test -v
+  - name: lint
+    script: flake8 asyncio_iter_tools tests
+  - name: test
+    python: 3.7
+    dist: xenial
+    sudo: true
 
-script: true
+script: py.test -v
 
 cache: pip
 before_cache:
