@@ -1,7 +1,7 @@
-import asyncio
 import weakref
 
 from .queue import MultiConsumerQueue
+from ._compat import get_running_loop
 
 
 def split(stream):
@@ -39,7 +39,7 @@ class _StreamSplitter:
         self._running = 0
 
     def __aiter__(self):
-        loop = asyncio.get_running_loop()
+        loop = get_running_loop()
         if self._running <= 0:
             self._running += 1
             self._task = loop.create_task(self._reader(self._stream))
@@ -95,7 +95,7 @@ class _SplitStreams:
         self._done = False
         self._exception = None
         self._queue = MultiConsumerQueue(buffer_size)
-        task = asyncio.get_running_loop().create_task(self._reader())
+        task = get_running_loop().create_task(self._reader())
         fin = weakref.finalize(self, task.cancel)
         task.add_done_callback(lambda x: fin.detach())
 

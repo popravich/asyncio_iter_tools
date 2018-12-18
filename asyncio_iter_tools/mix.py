@@ -1,7 +1,7 @@
-import asyncio
 import weakref
 
 from .queue import ClosableQueue
+from ._compat import get_running_loop
 
 
 async def mix(streamA, streamB, *streamN):
@@ -31,7 +31,7 @@ class _MixIter:
         self._queue = ClosableQueue(maxsize=len(self._streams))
 
     def __aiter__(self):
-        loop = asyncio.get_running_loop()
+        loop = get_running_loop()
         if self._running <= 0:
             self._running += 1
             for stream in self._streams:
