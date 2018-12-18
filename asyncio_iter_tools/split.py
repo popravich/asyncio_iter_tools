@@ -5,6 +5,22 @@ from .queue import MultiConsumerQueue
 
 
 def split(stream):
+    """Split a stream into two streams both reading same values.
+
+    >>> async def generate(seq, timeout):
+    ...     for obj in seq:
+    ...         yield await asyncio.sleep(timeout, obj)
+    >>> async def collect(stream):
+    ...     return [obj async for obj in stream]
+    >>> streamA, streamB = split(generate('abcd', 0))
+
+    >>> loop = asyncio.get_running_loop()
+    >>> taskA = loop.create_task(read(streamA))
+    >>> taskB = loop.create_task(read(streamB))
+    >>> await asyncio.wait([taskA, taskB])
+    >>> res = await taskA, await taskB
+    >>> assert res == (['a', 'b', 'c', 'd'], ['a', 'b', 'c', 'd'])
+    """
 
     split = _StreamSplitter(stream)
 
