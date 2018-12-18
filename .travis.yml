@@ -12,9 +12,9 @@ install:
 
 jobs:
   include:
-  - name: lint
+  - stage: lint
     script: flake8 asyncio_iter_tools tests
-  - name: test
+  - stage: test
     python: 3.7
     dist: xenial
     sudo: true
