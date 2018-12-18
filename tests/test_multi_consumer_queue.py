@@ -10,8 +10,9 @@ async def test_simple():
     assert q.buffer_maxsize == 1
     assert q.buffer_size() == 0
     assert not q.full()
+    assert not q.closed
 
-    await q.put(1)
+    assert await q.put(1) is True
     assert q.buffer_size() == 1
     assert q.full()
 
@@ -28,7 +29,7 @@ async def test_simple():
     assert q.empty(key2)
     assert q.qsize(key2) == 0
 
-    await q.put(2)
+    assert await q.put(2) is True
 
     assert await q.get(key2) == 2
     assert q.buffer_size() == 1
@@ -41,7 +42,7 @@ async def test_simple():
     assert q.qsize(key2) == 0
     assert q.qsize(key1) == 0
 
-    await q.put(3)
+    assert await q.put(3) is True
     assert await q.get(key1) == 3
     q.unregister(key2)
     assert q.buffer_size() == 0
@@ -103,8 +104,8 @@ async def test_get():
     assert await task == 1
 
 
-def test_register_unregister():
-    q = MultiConsumerQueue()
+def test_register_unregister(event_loop):
+    q = MultiConsumerQueue(loop=event_loop)
     key = q.register()
     assert q.qsize(key) == 0
     with pytest.raises(AssertionError):
@@ -115,3 +116,20 @@ def test_register_unregister():
         q.qsize(key)
     with pytest.raises(KeyError):
         q.unregister(key)
+
+
+@pytest.mark.asyncio
+async def test_put_after_close(event_loop):
+    q = MultiConsumerQueue()
+    assert await q.put(1) is True
+
+    q.close()
+    assert q.closed
+    assert await q.put(1) is False
+
+    q = MultiConsumerQueue()
+    assert await q.put(1) is True
+    event_loop.call_soon(q.close)
+    assert not q.closed
+    assert await q.put(2) is False
+    assert q.closed

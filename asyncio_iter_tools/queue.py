@@ -18,6 +18,7 @@ class ClosableQueue:
             return False
         while self.full() and not self._closed:
             await self._event_empty.wait()
+            # TODO: check when this event may not get cleared
         if self._closed:
             return False
         self._event_empty.clear()
@@ -50,7 +51,7 @@ class ClosableQueue:
 
     @property
     def exhausted(self):
-        return self._closed and not self._queue
+        return self.closed and self.empty()
 
     def qsize(self):
         return len(self._queue)
@@ -74,13 +75,16 @@ class ClosableQueue:
 
 class MultiConsumerQueue:
 
-    def __init__(self, buffer_size=1):
+    EndOfStream = object()
+
+    def __init__(self, buffer_size=1, *, loop=None):
         self._maxsize = buffer_size
         self._queue = []
         self._offsets = {}
         self._keys = 0
-        self._event_full = asyncio.Event()
-        self._event_empty = asyncio.Event()
+        self._closed = False
+        self._event_full = asyncio.Event(loop=loop)
+        self._event_empty = asyncio.Event(loop=loop)
 
     def register(self, key=None):
         if key is None:
@@ -96,16 +100,34 @@ class MultiConsumerQueue:
         self._offsets.pop(key)
         self._shift_offsets()
 
+    def close(self):
+        self._closed = True
+        self._event_full.set()
+        self._event_empty.set()
+
+    @property
+    def closed(self):
+        return self._closed
+
     async def put(self, item):
-        while self.full():
+        if self._closed:
+            return False
+        while self.full() and not self._closed:
             await self._event_empty.wait()
             self._event_empty.clear()
+        if self._closed:
+            return False
         self._queue.append(item)
         self._event_full.set()
+        return True
 
     async def get(self, key):
-        while self.empty(key):
+        while self.empty(key) and not self._closed:
             await self._event_full.wait()
+            self._event_full.clear()
+        # TODO: assert
+        if not self.qsize(key) and self._closed:
+            return self.EndOfStream
         idx = self._offsets[key]
         item = self._queue[idx]
         self._offsets[key] += 1

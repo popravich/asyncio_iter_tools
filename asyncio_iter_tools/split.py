@@ -16,38 +16,47 @@ def split(stream):
 
 class _StreamSplitter:
 
-    _EndOfStream = object()
-
     def __init__(self, stream, buffer_size=1):
         self._stream = stream
         self._queue = MultiConsumerQueue(buffer_size)
         self._done = False
+        self._running = 0
 
     def __aiter__(self):
         loop = asyncio.get_running_loop()
         if self._running <= 0:
             self._running += 1
-            self._task = loop.create_task(self._reader(self.stream))
+            self._task = loop.create_task(self._reader(self._stream))
             self._task.add_done_callback(self._on_done)
             self._stream = None
         key = self._queue.register()
-        it = _TaskCleaner(self, key)
-        weakref.finilize(it, self._queue.unregister, key)
-        return it
+        return _TaskCleaner(self, key)
 
     async def _next(self, key):
         obj = await self._queue.get(key)
-        if obj is self._EndOfStream:
+        if obj is self._queue.EndOfStream:
             raise StopAsyncIteration
         return obj
 
-    async def _reader(self):
-        async for obj in self._stream:
-            await self._queue.put(obj)
+    async def _reader(self, stream):
+        try:
+            async for obj in stream:
+                await self._queue.put(obj)
+        finally:
+            self._done = True
+            self._task = None
+            self._queue.close()
 
     def _on_done(self, task):
-        self._task = None
-        self._done = True
+        pass
+        if not task.cancelled():
+            try:
+                task.result()
+            except Exception:
+                pass    # TODO: log it or something...
+
+    def _cleanup(self, key):
+        self._queue.unregister(key)
 
 
 class _TaskCleaner:
@@ -55,6 +64,7 @@ class _TaskCleaner:
     def __init__(self, parent, key):
         self._parent = parent
         self._key = key
+        weakref.finalize(self, parent._cleanup, key)
 
     async def __anext__(self):
         return await self._parent._next(self._key)
