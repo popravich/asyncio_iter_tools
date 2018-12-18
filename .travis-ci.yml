@@ -1,0 +1,27 @@
+sudo: false
+dist: trusty
+
+language: python
+python:
+- "3.6"
+- "3.7"
+- "nightly"
+
+install:
+- pip install -r requirements.txt
+- pip install -e .
+
+jobs:
+  include:
+  - script: flake8 asyncio_iter_tools tests
+  - script: py.test -v
+
+script: true
+
+cache: pip
+before_cache:
+- rm -rf $HOME/.cache/pip/http
+- rm -f $HOME/.cache/pip/log/debug.log
+
+after_script:
+- codecov
