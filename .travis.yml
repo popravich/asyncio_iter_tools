@@ -1,5 +1,5 @@
 sudo: false
-dist: trusty
+dist: xenial
 
 language: python
 
@@ -19,8 +19,9 @@ jobs:
   - python: 3.7
     dist: xenial
     sudo: true
-  - python: 3.6
-    os: osx
+  - python: pypy3
+  # - python: 3.6
+  #   os: osx
 
 script: py.test -v
 

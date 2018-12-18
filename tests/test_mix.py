@@ -139,6 +139,6 @@ async def test_cleanup(simple_gen):
 
     tasks = all_tasks() - initial
     cancelled = {t for t in tasks if t.cancelled()}
-    pending = {t for t in tasks if t.done() and not t.cancelled()}
+    pending = {t for t in tasks if not t.done()}
     assert len(cancelled) >= 0
     assert not pending
