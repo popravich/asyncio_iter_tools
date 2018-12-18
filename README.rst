@@ -3,6 +3,9 @@ Python asyncio iterator tools
 
 The library provides a bunch of functions for working with async iterators.
 
+.. image:: https://travis-ci.com/popravich/asyncio_iter_tools.svg?branch=master
+    :target: https://travis-ci.com/popravich/asyncio_iter_tools
+
 
 The following tools are implemented:
 
