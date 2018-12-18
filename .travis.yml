@@ -15,6 +15,8 @@ jobs:
   - stage: lint
     script: flake8 asyncio_iter_tools tests
   - stage: test
+    python: 3.6
+  - stage: test
     python: 3.7
     dist: xenial
     sudo: true
