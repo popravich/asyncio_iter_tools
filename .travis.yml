@@ -16,10 +16,11 @@ jobs:
     script: flake8 asyncio_iter_tools tests
   - stage: test
     python: 3.6
-  - stage: test
-    python: 3.7
+  - python: 3.7
     dist: xenial
     sudo: true
+  - python: 3.7
+    os: osx
 
 script: py.test -v
 
