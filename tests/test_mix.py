@@ -3,6 +3,11 @@ import pytest
 
 from asyncio_iter_tools import mix
 
+if hasattr(asyncio, 'all_tasks'):
+    all_tasks = asyncio.all_tasks
+else:
+    all_tasks = asyncio.Task.all_tasks
+
 
 async def error_gen():
     yield 0
@@ -123,16 +128,16 @@ async def test_cleanup(simple_gen):
     gen1 = simple_gen('abc', .05)
     gen2 = simple_gen('def', .07)
 
-    initial = asyncio.all_tasks()
+    initial = all_tasks()
     async for i in mix(gen1, gen2):  # noqa: F841
         break
-    pending = asyncio.all_tasks() - initial
+    pending = all_tasks() - initial
     assert pending
 
     # Wait for gen1 to yield value
     await asyncio.sleep(0.05)
 
-    tasks = asyncio.all_tasks() - initial
+    tasks = all_tasks() - initial
     cancelled = {t for t in tasks if t.cancelled()}
     pending = {t for t in tasks if t.done() and not t.cancelled()}
     assert len(cancelled) >= 0
