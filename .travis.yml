@@ -1,12 +1,15 @@
 sudo: false
-dist: trusty
+dist: xenial
 
 language: python
 
 python:
 - "3.6"
+- "3.7"
+# - "pypy3.5"
 
 install:
+- pip install codecov
 - pip install -r requirements.txt
 - pip install -e .
 
@@ -14,15 +17,13 @@ jobs:
   include:
   - stage: lint
     script: flake8 asyncio_iter_tools tests
-  - stage: test
-    python: 3.6
-  - python: 3.7
-    dist: xenial
-    sudo: true
-  - python: 3.6
-    os: osx
+  # - python: 3.6
+  #   os: osx
+stages:
+- lint
+- test
 
-script: py.test -v
+script: py.test -v --cov
 
 cache: pip
 before_cache:
