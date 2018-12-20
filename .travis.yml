@@ -4,8 +4,8 @@ dist: xenial
 language: python
 
 python:
-- "3.6"
 - "3.7"
+- "3.6"
 # - "pypy3.5"
 
 install:
@@ -16,7 +16,12 @@ install:
 jobs:
   include:
   - stage: lint
+    name: Flake8
     script: flake8 asyncio_iter_tools tests
+  - name: Mypy
+    script: mypy asyncio_iter_tools
+    install:
+    - pip install mypy
   # - python: 3.6
   #   os: osx
 stages:
