@@ -4,7 +4,7 @@ from .queue import MultiConsumerQueue
 from ._compat import get_running_loop
 
 
-def split(stream):
+def split(stream, *, buffer_size=1):
     """Split a stream into two streams both reading same values.
 
     >>> async def generate(seq, timeout):
@@ -22,12 +22,8 @@ def split(stream):
     >>> assert res == (['a', 'b', 'c', 'd'], ['a', 'b', 'c', 'd'])
     """
 
-    split = _StreamSplitter(stream)
-
-    async def _split_iter():
-        async for obj in split:
-            yield obj
-    return _split_iter(), _split_iter()
+    split = _StreamSplitter(stream, buffer_size=buffer_size)
+    return split, split
 
 
 class _StreamSplitter:
@@ -41,10 +37,10 @@ class _StreamSplitter:
     def __aiter__(self):
         loop = get_running_loop()
         if self._running <= 0:
-            self._running += 1
             self._task = loop.create_task(self._reader(self._stream))
             self._task.add_done_callback(self._on_done)
-            self._stream = None
+            # self._stream = None
+        self._running += 1
         key = self._queue.register()
         return _TaskCleaner(self, key)
 
@@ -64,7 +60,6 @@ class _StreamSplitter:
             self._queue.close()
 
     def _on_done(self, task):
-        pass
         if not task.cancelled():
             try:
                 task.result()
@@ -73,6 +68,9 @@ class _StreamSplitter:
 
     def _cleanup(self, key):
         self._queue.unregister(key)
+        self._running -= 1
+        if self._running <= 0 and self._task is not None:
+            self._task.cancel()
 
 
 class _TaskCleaner:
@@ -84,55 +82,3 @@ class _TaskCleaner:
 
     async def __anext__(self):
         return await self._parent._next(self._key)
-
-
-class _SplitStreams:
-
-    _EndOfStream = object()
-
-    def __init__(self, stream, buffer_size=1):
-        self._stream = stream
-        self._done = False
-        self._exception = None
-        self._queue = MultiConsumerQueue(buffer_size)
-        task = get_running_loop().create_task(self._reader())
-        fin = weakref.finalize(self, task.cancel)
-        task.add_done_callback(lambda x: fin.detach())
-
-    async def pull_one(self, idx):
-        if self._done and self._queue.empty(idx):
-            raise StopAsyncIteration
-        if self._exception is not None:
-            raise self._exception from None
-        obj = await self._queue.get(idx)
-        if obj is self._EndOfStream:
-            if self._exception is not None:
-                raise self._exception from None
-            raise StopAsyncIteration
-        return obj
-
-    def __aiter__(self):
-        key = self._queue.register()
-        it = _SplitIter(self, key)
-        weakref.finalize(it, self._queue.unregister, key)
-        return it
-
-    async def _reader(self):
-        try:
-            async for obj in self._stream:
-                await self._queue.put(obj)
-        except Exception as err:
-            self._exception = err
-            raise
-        finally:
-            self._queue.put_nowait(self._EndOfStream, force=True)
-            self._done = True
-
-
-class _SplitIter:
-    def __init__(self, parent, idx):
-        self._parent = parent
-        self._idx = idx
-
-    async def __anext__(self):
-        return await self._parent.pull_one(self._idx)

@@ -2,7 +2,7 @@ import inspect
 
 from .queue import ClosableQueue, MultiConsumerQueue
 from .mix import mix
-from .split import split
+from .split import split, _StreamSplitter
 
 
 __all__ = [
@@ -51,12 +51,12 @@ async def map(func, stream):
     """Return async iterator applying func to each value of stream."""
     if not callable(func):
         raise ValueError("Excpected callable object", func)
-        if inspect.iscoroutinefunction(func):
-            async for obj in stream:
-                yield await func(obj)
-        else:
-            async for obj in stream:
-                yield func(obj)
+    if inspect.iscoroutinefunction(func):
+        async for obj in stream:
+            yield await func(obj)
+    else:
+        async for obj in stream:
+            yield func(obj)
 
 
 class Iterator:
@@ -100,5 +100,6 @@ class Iterator:
         return self
 
     def split(self, *, buffer_size=1):
-        self._stream, streamB = split(self._stream)
-        return streamB
+        if not isinstance(self._stream, _StreamSplitter):
+            self._stream, copy = split(self._stream, buffer_size=buffer_size)
+        return type(self)(copy)
