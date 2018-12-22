@@ -28,6 +28,28 @@ class EndOfStreamMarker(enum.Enum):
 
 
 class ClosableQueue(Generic[T]):
+    """Closable queue.
+
+    Example:
+
+    >>> from contextlib import closable
+    >>>
+    >>> queue = ClosableQueue()
+    >>>
+    >>> async def iterate(queue):
+    ...     obj = await queue.get()
+    ...     while obj is not queue.EndOfStream:
+    ...         yield obj
+    ...         obj = await queue.get()
+    >>>
+    >>> async def produce(queue):
+    ...     with open('some-file', 'rt') as f, closable(queue):
+    ...         await queue.put(f.readline())
+    >>> asyncio.ensure_future(product(queue))
+    >>>
+    >>> async for obj in iterate(queue):
+    ...     print(obj)
+    """
 
     EndOfStream = EndOfStreamMarker.token
 
@@ -40,6 +62,15 @@ class ClosableQueue(Generic[T]):
         self._event_empty = asyncio.Event(loop=loop)
 
     async def put(self, item: T) -> bool:
+        """Put an item into queue.
+
+        The method will block until some items are popped from queue if it
+        is full.
+
+        Return value indicates whether an item has been put into queue
+        (``True``) or dropped because queue is (or has just been) closed
+        (``False``).
+        """
         if self._closed:
             return False
         while self.full() and not self._closed:
@@ -53,6 +84,11 @@ class ClosableQueue(Generic[T]):
         return True
 
     async def get(self) -> Union[T, EndOfStreamMarker]:
+        """Wait and get an item from queue.
+
+        If queue is closed and there is no more items in queue
+        the ``ClosableQueue.EndOfStream`` marker is returned.
+        """
         while self.empty() and not self._closed:
             await self._event_full.wait()
         assert self._queue or self._closed, (
@@ -66,30 +102,39 @@ class ClosableQueue(Generic[T]):
         return item
 
     def close(self) -> None:
-        """Mark queue as closed and notify all waiters."""
+        """Mark queue as closed."""
         self._closed = True
         self._event_empty.set()
         self._event_full.set()
 
     @property
     def closed(self) -> bool:
+        """True if queue is closed."""
         return self._closed
 
     @property
     def exhausted(self) -> bool:
+        """True if queue is empty and closed."""
         return self.closed and self.empty()
 
     def qsize(self) -> int:
+        """Queue size."""
         return len(self._queue)
 
     @property
     def maxsize(self) -> int:
+        """Max size of queue."""
         return self._maxsize
 
     def empty(self) -> bool:
+        """True if queue is empty."""
         return not self._queue
 
     def full(self) -> bool:
+        """
+        True if ``maxsize`` is greater then 0 and queue size has reached
+        this limit.
+        """
         if self._maxsize <= 0:
             return False
         return self.qsize() >= self._maxsize
@@ -100,6 +145,9 @@ class ClosableQueue(Generic[T]):
 
 
 class MultiConsumerQueue(Generic[T]):
+    """Multi-consumer closable queue.
+
+    """
 
     EndOfStream = EndOfStreamMarker.token
 
@@ -128,15 +176,18 @@ class MultiConsumerQueue(Generic[T]):
         self._shift_offsets()
 
     def close(self) -> None:
+        """Close queue."""
         self._closed = True
         self._event_full.set()
         self._event_empty.set()
 
     @property
     def closed(self) -> bool:
+        """True if queue is closed."""
         return self._closed
 
     async def put(self, item: T) -> bool:
+        """Put an item into queue."""
         if self._closed:
             return False
         while self.full() and not self._closed:
@@ -149,6 +200,7 @@ class MultiConsumerQueue(Generic[T]):
         return True
 
     async def get(self, key: Key) -> Union[T, EndOfStreamMarker]:
+        """Wait and get an item from queue."""
         while self.empty(key) and not self._closed:
             await self._event_full.wait()
             self._event_full.clear()
@@ -171,21 +223,26 @@ class MultiConsumerQueue(Generic[T]):
             self._event_full.clear()
 
     def full(self) -> bool:
+        """True if shared buffer is full."""
         return self.buffer_size() >= self._maxsize
 
     def buffer_size(self) -> int:
+        """Shared buffer size."""
         return len(self._queue)
 
     def qsize(self, key: Key) -> int:
+        """Size of queue."""
         idx = self._offsets[key]
         return len(self._queue) - idx
 
     def empty(self, key: Key) -> bool:
+        """True if queue is empty."""
         idx = self._offsets[key]
         return idx >= self.qsize(key)
 
     @property
     def buffer_maxsize(self) -> int:
+        """Max size of shared buffer."""
         return self._maxsize
 
     def consumer(self) -> '_Consumer':

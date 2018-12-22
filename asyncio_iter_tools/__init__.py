@@ -92,6 +92,7 @@ async def map(func: MapCallback, stream: AsyncIterable[T]) -> AsyncIterable[U]:
 
 
 async def collect(stream: AsyncIterable[T]) -> List[T]:
+    """Collect async iterator into a list."""
     return [obj async for obj in stream]
 
 
@@ -99,6 +100,7 @@ class Iterator(Generic[T]):
     """An async iterator builder.
 
     Example:
+
     >>> async def simple_stream(seq, delay):
     ...     for obj in seq:
     ...         yield await asyncio.sleep(delay, obj)
