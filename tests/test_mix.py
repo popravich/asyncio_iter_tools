@@ -1,6 +1,11 @@
 import asyncio
 import pytest
 
+from typing import (
+    AsyncIterable, Any, Iterable, TypeVar, List
+)
+from typing_extensions import Protocol
+
 from asyncio_iter_tools import mix
 
 if hasattr(asyncio, 'all_tasks'):
@@ -9,13 +14,22 @@ else:
     all_tasks = asyncio.Task.all_tasks
 
 
-async def error_gen():
+T = TypeVar('T')
+U = TypeVar('U')
+
+
+class SimpleGen(Protocol):
+    def __call__(self, sequence: Iterable[T],
+                 delay: float) -> AsyncIterable[T]: ...
+
+
+async def error_gen() -> Any:
     yield 0
     raise RuntimeError("Oops")
 
 
 @pytest.mark.asyncio
-async def test_mix_streams(simple_gen):
+async def test_mix_streams(simple_gen: SimpleGen) -> None:
 
     gen1 = simple_gen(range(3), .07)
     gen2 = simple_gen('abc', .05)
@@ -37,7 +51,7 @@ async def test_mix_streams(simple_gen):
 
 
 @pytest.mark.asyncio
-async def test_mix_streams2(simple_gen):
+async def test_mix_streams2(simple_gen: SimpleGen) -> None:
     gen1 = simple_gen(range(3), 0.07)
     gen2 = simple_gen('abc', 0.05)
 
@@ -46,7 +60,7 @@ async def test_mix_streams2(simple_gen):
 
 
 @pytest.mark.asyncio
-async def test_stop(simple_gen):
+async def test_stop(simple_gen: SimpleGen) -> None:
     gen1 = simple_gen('abc', 0.1)
     gen2 = error_gen()
 
@@ -61,7 +75,7 @@ async def test_stop(simple_gen):
 
 
 @pytest.mark.asyncio
-async def test_break(simple_gen):
+async def test_break(simple_gen: SimpleGen) -> None:
     gen1 = simple_gen('abc', 0.1)
     gen2 = error_gen()
 
@@ -73,7 +87,7 @@ async def test_break(simple_gen):
 
 
 @pytest.mark.asyncio
-async def test_many_streams(simple_gen):
+async def test_many_streams(simple_gen: SimpleGen) -> None:
     gen1 = simple_gen('abc', 0)
     gen2 = simple_gen([1, 2, 3], 0)
     gen3 = simple_gen('!@#', 0)
@@ -83,11 +97,11 @@ async def test_many_streams(simple_gen):
 
 
 @pytest.mark.asyncio
-async def test_several_consumers(simple_gen):
+async def test_several_consumers(simple_gen: SimpleGen) -> None:
     gen1 = simple_gen('abc', 0.05)
     gen2 = simple_gen('def', 0.07)
 
-    async def read(it, t):
+    async def read(it: AsyncIterable[T], t: float) -> List[T]:
         res = []
         async for i in it:
             await asyncio.sleep(t)
@@ -104,11 +118,11 @@ async def test_several_consumers(simple_gen):
 
 
 @pytest.mark.asyncio
-async def test_several_consumers__not_shared(simple_gen):
+async def test_several_consumers__not_shared(simple_gen: SimpleGen) -> None:
     gen1 = simple_gen('abc', 0.05)
     gen2 = simple_gen('def', 0.07)
 
-    async def read(it, t):
+    async def read(it: AsyncIterable[T], t: float) -> List[T]:
         res = []
         async for i in it:
             res.append(i)
@@ -124,7 +138,7 @@ async def test_several_consumers__not_shared(simple_gen):
 
 
 @pytest.mark.asyncio
-async def test_cleanup(simple_gen):
+async def test_cleanup(simple_gen: SimpleGen) -> None:
     gen1 = simple_gen('abc', .05)
     gen2 = simple_gen('def', .07)
 
