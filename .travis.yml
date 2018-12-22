@@ -31,9 +31,6 @@ stages:
 script: py.test -v --cov
 
 cache: pip
-before_cache:
-- rm -rf $HOME/.cache/pip/http
-- rm -f $HOME/.cache/pip/log/debug.log
 
 after_script:
 - codecov
