@@ -1,5 +1,6 @@
 import asyncio
 import weakref
+import logging
 
 from typing import (
     cast,
@@ -18,6 +19,8 @@ from ._compat import get_running_loop
 T = TypeVar('T')
 U = TypeVar('U')
 V = TypeVar('V')
+
+log = logging.getLogger(__name__)
 
 
 def split(stream: AsyncIterable[T], *,
@@ -82,6 +85,7 @@ class _StreamSplitter(Generic[T]):
             try:
                 task.result()
             except Exception:
+                log.exception("Async-iterator task ended with error")
                 pass    # TODO: log it or something...
 
     def _cleanup(self, key: Key) -> None:
