@@ -138,6 +138,7 @@ class Iterator(Generic[T]):
         return type(self)(mix(self, streamB, *streamN))
 
     def split(self, *, buffer_size: int = 1) -> 'Iterator[T]':
-        if not isinstance(self._stream, _StreamSplitter):
-            self._stream, copy = split(self._stream, buffer_size=buffer_size)
+        if isinstance(self._stream, _StreamSplitter):
+            return type(self)(self._stream)
+        self._stream, copy = split(self._stream, buffer_size=buffer_size)
         return type(self)(copy)
